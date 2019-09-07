@@ -15,6 +15,7 @@ import (
 var (
 	flagSrcDir     string
 	flagOutputFile string
+	flagLabel      string
 )
 
 func NewCmd() *cobra.Command {
@@ -26,6 +27,7 @@ func NewCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&flagSrcDir, "src_dir", "s", "./", "directory to read definitions of components from")
 	cmd.Flags().StringVarP(&flagOutputFile, "output_file", "o", "", "file path to write DOT to (default: stdout)")
+	cmd.Flags().StringVarP(&flagLabel, "label", "l", "", "query label")
 
 	return cmd
 }
@@ -49,6 +51,9 @@ func run(cmd *cobra.Command, args []string) error {
 
 		for _, cDef := range def.Components {
 			c := graph.NewComponent(cDef.Name)
+			for k, v := range cDef.Labels {
+				c.Label(k, v)
+			}
 			for _, dDef := range cDef.Dependencies {
 				d := graph.NewComponent(dDef.Name)
 				c.DependOn(d)
@@ -57,11 +62,11 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	allCs := []*graph.Component{}
-	for _, c := range cs.Components {
-		allCs = append(allCs, c)
+	group, err := cs.Query(flagLabel)
+	if err != nil {
+		return err
 	}
-	writeDot(allCs, flagOutputFile)
+	writeDot(group, flagOutputFile)
 
 	return nil
 }

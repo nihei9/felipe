@@ -35,6 +35,7 @@ func (def *definition) validate() error {
 
 type component struct {
 	Name         string                `yaml:"name"`
+	Labels       map[string]string     `yaml:"labels"`
 	Dependencies []*dependentComponent `yaml:"dependencies"`
 }
 
