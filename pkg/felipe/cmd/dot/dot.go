@@ -16,6 +16,7 @@ var (
 	flagSrcDir     string
 	flagOutputFile string
 	flagLabel      string
+	flagFaceFile   string
 )
 
 func NewCmd() *cobra.Command {
@@ -28,6 +29,7 @@ func NewCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&flagSrcDir, "src_dir", "s", "./", "directory to read definitions of components from")
 	cmd.Flags().StringVarP(&flagOutputFile, "output_file", "o", "", "file path to write DOT to (default: stdout)")
 	cmd.Flags().StringVarP(&flagLabel, "label", "l", "", "query label")
+	cmd.Flags().StringVarP(&flagFaceFile, "face", "f", "", "file path that defines faces for image generates from DOT")
 
 	return cmd
 }
@@ -49,6 +51,10 @@ func run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
+		if def.Kind != definitionKindComponents {
+			continue
+		}
+
 		for _, cDef := range def.Components {
 			c := graph.NewComponent(cDef.Name)
 			for k, v := range cDef.Labels {
@@ -62,11 +68,35 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	fs := []*graph.Face{}
+	if flagFaceFile != "" {
+		def, err := readDefinition(flagFaceFile)
+		if err != nil {
+			return err
+		}
+		err = def.validate()
+		if err != nil {
+			return err
+		}
+
+		if def.Kind != definitionKindFaces {
+			return fmt.Errorf("kind of specified face file is not `faces`; got: %v", def.Kind)
+		}
+
+		for _, fDef := range def.Faces {
+			f := graph.NewFace()
+			m := graph.NewLabelsMatcher(fDef.Targets.MatchLabels)
+			f.AddTarget(m)
+			f.AddAttributes(fDef.Attributes)
+			fs = append(fs, f)
+		}
+	}
+
 	group, err := cs.Query(flagLabel)
 	if err != nil {
 		return err
 	}
-	writeDot(group, flagOutputFile)
+	writeDot(group, fs, flagOutputFile)
 
 	return nil
 }
@@ -95,8 +125,8 @@ func readDefinition(filePath string) (*definition, error) {
 	return def, nil
 }
 
-func writeDot(group []*graph.Component, filePath string) error {
-	dot, err := genDot(group)
+func writeDot(group []*graph.Component, fs []*graph.Face, filePath string) error {
+	dot, err := genDot(group, fs)
 	if err != nil {
 		return err
 	}
@@ -116,7 +146,7 @@ func writeDot(group []*graph.Component, filePath string) error {
 	return nil
 }
 
-func genDot(group []*graph.Component) (string, error) {
+func genDot(group []*graph.Component, fs []*graph.Face) (string, error) {
 	ast, _ := gographviz.ParseString("digraph G {}")
 	g := gographviz.NewGraph()
 	err := gographviz.Analyse(ast, g)
@@ -127,12 +157,20 @@ func genDot(group []*graph.Component) (string, error) {
 	g.AddAttr("G", "fontsize", "11.0")
 
 	for _, c := range group {
-		err = g.AddNode("G", fmt.Sprintf("\"%s\"", c.ID.String()), nil)
+		attrs, err := genAttributes(c, fs)
+		if err != nil {
+			return "", err
+		}
+		err = g.AddNode("G", fmt.Sprintf("\"%s\"", c.ID.String()), attrs)
 		if err != nil {
 			return "", err
 		}
 		for _, d := range c.Dependencies {
-			err := g.AddNode("G", fmt.Sprintf("\"%s\"", d.ID.String()), nil)
+			attrs, err := genAttributes(d, fs)
+			if err != nil {
+				return "", err
+			}
+			err = g.AddNode("G", fmt.Sprintf("\"%s\"", d.ID.String()), attrs)
 			if err != nil {
 				return "", err
 			}
@@ -145,4 +183,30 @@ func genDot(group []*graph.Component) (string, error) {
 	}
 
 	return g.String(), nil
+}
+
+func genAttributes(c *graph.Component, fs []*graph.Face) (map[string]string, error) {
+	attrs := map[string]string{}
+	for _, f := range fs {
+		match := false
+		for _, m := range f.Matchers {
+			ok, err := m.Match(c)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				continue
+			}
+			match = true
+			break
+		}
+		if !match {
+			continue
+		}
+		for k, v := range f.Attributes {
+			attrs[k] = v
+		}
+	}
+
+	return attrs, nil
 }

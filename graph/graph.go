@@ -80,3 +80,56 @@ func (c *Component) Label(key string, value string) {
 func (c *Component) DependOn(d *Component) {
 	c.Dependencies[d.ID] = d
 }
+
+type Face struct {
+	Matchers   []Matcher
+	Attributes map[string]string
+}
+
+func NewFace() *Face {
+	return &Face{
+		Matchers:   []Matcher{},
+		Attributes: map[string]string{},
+	}
+}
+
+func (f *Face) AddTarget(m Matcher) {
+	f.Matchers = append(f.Matchers, m)
+}
+
+func (f *Face) AddAttributes(attrs map[string]string) {
+	for k, v := range attrs {
+		f.Attributes[k] = v
+	}
+}
+
+type Matcher interface {
+	Match(*Component) (bool, error)
+}
+
+// LabelsMatcher is implementation of the Matcher interface.
+type LabelsMatcher struct {
+	labels map[string]string
+}
+
+func NewLabelsMatcher(labels map[string]string) *LabelsMatcher {
+	m := &LabelsMatcher{
+		labels: map[string]string{},
+	}
+	for k, v := range labels {
+		m.labels[k] = v
+	}
+
+	return m
+}
+
+func (m *LabelsMatcher) Match(c *Component) (bool, error) {
+	for queryK, queryV := range m.labels {
+		v, ok := c.Labels[queryK]
+		if ok && v == queryV {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
