@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/awalterschulze/gographviz"
 	"github.com/nihei9/felipe/graph"
@@ -92,11 +93,24 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	group, err := cs.Query(flagLabel)
-	if err != nil {
-		return err
+	if flagLabel != "" {
+		l := strings.Split(flagLabel, "=")
+		if len(l) != 2 {
+			return fmt.Errorf("query label is malformed; got: %v", flagLabel)
+		}
+		condK := strings.TrimSpace(l[0])
+		condV := strings.TrimSpace(l[1])
+
+		cond := graph.NewCondition()
+		cond.AddMatcher(graph.NewLabelsMatcher(map[string]string{condK: condV}))
+		group, err := graph.Query(cs, cond, nil)
+		if err != nil {
+			return err
+		}
+		writeDot(group, fs, flagOutputFile)
+	} else {
+		writeDot(cs, fs, flagOutputFile)
 	}
-	writeDot(group, fs, flagOutputFile)
 
 	return nil
 }
@@ -125,8 +139,8 @@ func readDefinition(filePath string) (*definition, error) {
 	return def, nil
 }
 
-func writeDot(group []*graph.Component, fs []*graph.Face, filePath string) error {
-	dot, err := genDot(group, fs)
+func writeDot(cs *graph.Components, fs []*graph.Face, filePath string) error {
+	dot, err := genDot(cs, fs)
 	if err != nil {
 		return err
 	}
@@ -146,7 +160,7 @@ func writeDot(group []*graph.Component, fs []*graph.Face, filePath string) error
 	return nil
 }
 
-func genDot(group []*graph.Component, fs []*graph.Face) (string, error) {
+func genDot(cs *graph.Components, fs []*graph.Face) (string, error) {
 	ast, _ := gographviz.ParseString("digraph G {}")
 	g := gographviz.NewGraph()
 	err := gographviz.Analyse(ast, g)
@@ -156,7 +170,7 @@ func genDot(group []*graph.Component, fs []*graph.Face) (string, error) {
 	g.AddAttr("G", "rankdir", "LR")
 	g.AddAttr("G", "fontsize", "11.0")
 
-	for _, c := range group {
+	for _, c := range cs.Components {
 		attrs, err := genAttributes(c, fs)
 		if err != nil {
 			return "", err
@@ -188,19 +202,11 @@ func genDot(group []*graph.Component, fs []*graph.Face) (string, error) {
 func genAttributes(c *graph.Component, fs []*graph.Face) (map[string]string, error) {
 	attrs := map[string]string{}
 	for _, f := range fs {
-		match := false
-		for _, m := range f.Matchers {
-			ok, err := m.Match(c)
-			if err != nil {
-				return nil, err
-			}
-			if !ok {
-				continue
-			}
-			match = true
-			break
+		ok, err := graph.Match(c, f.Condition)
+		if err != nil {
+			return nil, err
 		}
-		if !match {
+		if !ok {
 			continue
 		}
 		for k, v := range f.Attributes {
