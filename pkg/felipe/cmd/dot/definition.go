@@ -26,7 +26,8 @@ func (def *definition) validate() error {
 		return fmt.Errorf("`kind` must be specified")
 	}
 
-	if def.Kind == definitionKindComponents {
+	switch def.Kind {
+	case definitionKindComponents:
 		if len(def.Components) <= 0 {
 			return fmt.Errorf("`components` must contain at least one content")
 		}
@@ -37,8 +38,7 @@ func (def *definition) validate() error {
 				return err
 			}
 		}
-	}
-	if def.Kind == definitionKindFaces {
+	case definitionKindFaces:
 		if len(def.Faces) <= 0 {
 			return fmt.Errorf("`faces` must contain at least one face")
 		}
@@ -49,6 +49,8 @@ func (def *definition) validate() error {
 				return err
 			}
 		}
+	default:
+		return fmt.Errorf("`kind` must be `components` or `faces`")
 	}
 
 	return nil
