@@ -106,9 +106,15 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		writeDot(group, cs, fs, flagOutputFile)
+		err = writeDot(group, cs, fs, flagOutputFile)
+		if err != nil {
+			return err
+		}
 	} else {
-		writeDot(cs, cs, fs, flagOutputFile)
+		err := writeDot(cs, cs, fs, flagOutputFile)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
