@@ -62,8 +62,7 @@ func run(cmd *cobra.Command, args []string) error {
 				c.Label(k, v)
 			}
 			for _, dDef := range cDef.Dependencies {
-				d := graph.NewComponent(dDef.Name)
-				c.DependOn(d)
+				c.DependOn(graph.NewComponentID(dDef.Name))
 			}
 			cs.AddComponent(c)
 		}
@@ -107,9 +106,9 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		writeDot(group, fs, flagOutputFile)
+		writeDot(group, cs, fs, flagOutputFile)
 	} else {
-		writeDot(cs, fs, flagOutputFile)
+		writeDot(cs, cs, fs, flagOutputFile)
 	}
 
 	return nil
@@ -139,8 +138,8 @@ func readDefinition(filePath string) (*definition, error) {
 	return def, nil
 }
 
-func writeDot(cs *graph.Components, fs []*graph.Face, filePath string) error {
-	dot, err := genDot(cs, fs)
+func writeDot(group *graph.Components, cs *graph.Components, fs []*graph.Face, filePath string) error {
+	dot, err := genDot(group, cs, fs)
 	if err != nil {
 		return err
 	}
@@ -160,7 +159,7 @@ func writeDot(cs *graph.Components, fs []*graph.Face, filePath string) error {
 	return nil
 }
 
-func genDot(cs *graph.Components, fs []*graph.Face) (string, error) {
+func genDot(group *graph.Components, cs *graph.Components, fs []*graph.Face) (string, error) {
 	ast, _ := gographviz.ParseString("digraph G {}")
 	g := gographviz.NewGraph()
 	err := gographviz.Analyse(ast, g)
@@ -170,7 +169,7 @@ func genDot(cs *graph.Components, fs []*graph.Face) (string, error) {
 	g.AddAttr("G", "rankdir", "LR")
 	g.AddAttr("G", "fontsize", "11.0")
 
-	for _, c := range cs.Components {
+	for _, c := range group.Components {
 		attrs, err := genAttributes(c, fs)
 		if err != nil {
 			return "", err
@@ -179,7 +178,11 @@ func genDot(cs *graph.Components, fs []*graph.Face) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		for _, d := range c.Dependencies {
+		for _, dcid := range c.Dependencies {
+			d, ok := cs.Get(dcid)
+			if !ok {
+				return "", fmt.Errorf("unknown component `%s`", dcid)
+			}
 			attrs, err := genAttributes(d, fs)
 			if err != nil {
 				return "", err

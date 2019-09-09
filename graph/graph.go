@@ -10,6 +10,11 @@ func NewComponents() *Components {
 	}
 }
 
+func (cs *Components) Get(cid ComponentID) (*Component, bool) {
+	c, ok := cs.Components[cid]
+	return c, ok
+}
+
 func (cs *Components) AddComponent(c *Component) {
 	cs.Components[c.ID] = c
 }
@@ -20,7 +25,7 @@ func (cid ComponentID) String() string {
 	return string(cid)
 }
 
-func newComponentID(name string) ComponentID {
+func NewComponentID(name string) ComponentID {
 	return ComponentID(name)
 }
 
@@ -28,15 +33,15 @@ type Component struct {
 	ID           ComponentID
 	Name         string
 	Labels       map[string]string
-	Dependencies map[ComponentID]*Component
+	Dependencies []ComponentID
 }
 
 func NewComponent(name string) *Component {
 	return &Component{
-		ID:           newComponentID(name),
+		ID:           NewComponentID(name),
 		Name:         name,
 		Labels:       map[string]string{},
-		Dependencies: map[ComponentID]*Component{},
+		Dependencies: []ComponentID{},
 	}
 }
 
@@ -44,8 +49,8 @@ func (c *Component) Label(key string, value string) {
 	c.Labels[key] = value
 }
 
-func (c *Component) DependOn(d *Component) {
-	c.Dependencies[d.ID] = d
+func (c *Component) DependOn(cid ComponentID) {
+	c.Dependencies = append(c.Dependencies, cid)
 }
 
 type Face struct {
