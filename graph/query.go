@@ -66,9 +66,11 @@ func NewLabelsMatcher(labels map[string]string) *LabelsMatcher {
 
 func (m *LabelsMatcher) Match(c *Component) (bool, error) {
 	for condK, condV := range m.labels {
-		v, ok := c.Labels[condK]
-		if ok && v == condV {
-			return true, nil
+		vs, ok := c.Labels[condK]
+		for _, v := range vs {
+			if ok && v == condV {
+				return true, nil
+			}
 		}
 	}
 

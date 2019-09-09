@@ -32,7 +32,7 @@ func NewComponentID(name string) ComponentID {
 type Component struct {
 	ID           ComponentID
 	Name         string
-	Labels       map[string]string
+	Labels       map[string][]string
 	Dependencies []ComponentID
 }
 
@@ -40,13 +40,17 @@ func NewComponent(name string) *Component {
 	return &Component{
 		ID:           NewComponentID(name),
 		Name:         name,
-		Labels:       map[string]string{},
+		Labels:       map[string][]string{},
 		Dependencies: []ComponentID{},
 	}
 }
 
 func (c *Component) Label(key string, value string) {
-	c.Labels[key] = value
+	if _, ok := c.Labels[key]; !ok {
+		c.Labels[key] = []string{value}
+	} else {
+		c.Labels[key] = append(c.Labels[key], value)
+	}
 }
 
 func (c *Component) DependOn(cid ComponentID) {

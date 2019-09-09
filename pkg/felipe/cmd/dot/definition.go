@@ -18,7 +18,7 @@ type definition struct {
 	Faces []*face `yaml:"faces"`
 }
 
-func (def *definition) validate() error {
+func (def *definition) validateAndComplement() error {
 	if def.Version == "" {
 		return fmt.Errorf("`version` must be specified")
 	}
@@ -33,7 +33,7 @@ func (def *definition) validate() error {
 		}
 
 		for _, c := range def.Components {
-			err := c.validate()
+			err := c.validateAndComplement()
 			if err != nil {
 				return err
 			}
@@ -44,7 +44,7 @@ func (def *definition) validate() error {
 		}
 
 		for _, f := range def.Faces {
-			err := f.validate()
+			err := f.validateAndComplement()
 			if err != nil {
 				return err
 			}
@@ -58,17 +58,49 @@ func (def *definition) validate() error {
 
 type component struct {
 	Name         string                `yaml:"name"`
-	Labels       map[string]string     `yaml:"labels"`
+	RawLabels    interface{}           `yaml:"labels"`
+	Labels       map[string][]string   `yaml:"-"`
 	Dependencies []*dependentComponent `yaml:"dependencies"`
 }
 
-func (c *component) validate() error {
+func (c *component) validateAndComplement() error {
+	c.Labels = map[string][]string{}
+
 	if c.Name == "" {
 		return fmt.Errorf("`componets[].name` must be specified")
 	}
 
+	if c.RawLabels != nil {
+		rawLabels, ok := c.RawLabels.(map[interface{}]interface{})
+		if !ok {
+			return fmt.Errorf("`labels` is malformed")
+		}
+		for rawKey, rawValues := range rawLabels {
+			key, ok := rawKey.(string)
+			if !ok {
+				return fmt.Errorf("a key of `labels` must be string")
+			}
+			switch values := rawValues.(type) {
+			case string:
+				c.Labels[key] = []string{values}
+			case []interface{}:
+				s := []string{}
+				for _, value := range values {
+					v, ok := value.(string)
+					if !ok {
+						return fmt.Errorf("a value of `labels` must be string")
+					}
+					s = append(s, v)
+				}
+				c.Labels[key] = s
+			default:
+				return fmt.Errorf("`labels` is malformed")
+			}
+		}
+	}
+
 	for _, dc := range c.Dependencies {
-		err := dc.validate()
+		err := dc.validateAndComplement()
 		if err != nil {
 			return err
 		}
@@ -81,7 +113,7 @@ type dependentComponent struct {
 	Name string `yaml:"name"`
 }
 
-func (dc *dependentComponent) validate() error {
+func (dc *dependentComponent) validateAndComplement() error {
 	if dc.Name == "" {
 		return fmt.Errorf("`dependencies[].name` must be specified")
 	}
@@ -94,7 +126,7 @@ type face struct {
 	Attributes map[string]string `yaml:"attributes"`
 }
 
-func (f *face) validate() error {
+func (f *face) validateAndComplement() error {
 	return nil
 }
 

@@ -47,7 +47,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = def.validate()
+		err = def.validateAndComplement()
 		if err != nil {
 			return err
 		}
@@ -58,8 +58,10 @@ func run(cmd *cobra.Command, args []string) error {
 
 		for _, cDef := range def.Components {
 			c := graph.NewComponent(cDef.Name)
-			for k, v := range cDef.Labels {
-				c.Label(k, v)
+			for k, vs := range cDef.Labels {
+				for _, v := range vs {
+					c.Label(k, v)
+				}
 			}
 			for _, dDef := range cDef.Dependencies {
 				c.DependOn(graph.NewComponentID(dDef.Name))
@@ -74,7 +76,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = def.validate()
+		err = def.validateAndComplement()
 		if err != nil {
 			return err
 		}
