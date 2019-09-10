@@ -66,7 +66,10 @@ func run(cmd *cobra.Command, args []string) error {
 			for _, dDef := range cDef.Dependencies {
 				c.DependOn(graph.NewComponentID(dDef.Name))
 			}
-			cs.AddComponent(c)
+			err := cs.Add(c)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

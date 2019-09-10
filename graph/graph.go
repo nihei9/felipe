@@ -1,5 +1,7 @@
 package graph
 
+import "fmt"
+
 type Components struct {
 	Components map[ComponentID]*Component
 }
@@ -15,8 +17,13 @@ func (cs *Components) Get(cid ComponentID) (*Component, bool) {
 	return c, ok
 }
 
-func (cs *Components) AddComponent(c *Component) {
+func (cs *Components) Add(c *Component) error {
+	if _, ok := cs.Components[c.ID]; ok {
+		return fmt.Errorf("component `%v` already exists", c.ID)
+	}
 	cs.Components[c.ID] = c
+
+	return nil
 }
 
 type ComponentID string

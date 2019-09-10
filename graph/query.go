@@ -10,7 +10,10 @@ func Query(cs *Components, cond *Condition, _ *ComplementMethod) (*Components, e
 		if !ok {
 			continue
 		}
-		matches.AddComponent(c)
+		err = matches.Add(c)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return matches, nil
