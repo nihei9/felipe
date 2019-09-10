@@ -181,11 +181,12 @@ func genDot(group *graph.Components, cs *graph.Components, fs []*graph.Face) (st
 	g.AddAttr("G", "fontsize", "11.0")
 
 	for _, c := range group.Components {
-		attrs, err := genAttributes(c, fs)
+		nAttrs, err := genAttributes(c, fs)
+		nAttrs["penwidth"] = "0.75"
 		if err != nil {
 			return "", err
 		}
-		err = g.AddNode("G", fmt.Sprintf("\"%s\"", c.ID.String()), attrs)
+		err = g.AddNode("G", fmt.Sprintf("\"%s\"", c.ID.String()), nAttrs)
 		if err != nil {
 			return "", err
 		}
@@ -194,16 +195,21 @@ func genDot(group *graph.Components, cs *graph.Components, fs []*graph.Face) (st
 			if !ok {
 				return "", fmt.Errorf("unknown component `%s`", dcid)
 			}
-			attrs, err := genAttributes(d, fs)
+			nAttrs, err := genAttributes(d, fs)
+			nAttrs["penwidth"] = "0.75"
 			if err != nil {
 				return "", err
 			}
-			err = g.AddNode("G", fmt.Sprintf("\"%s\"", d.ID.String()), attrs)
+			err = g.AddNode("G", fmt.Sprintf("\"%s\"", d.ID.String()), nAttrs)
 			if err != nil {
 				return "", err
 			}
 
-			err = g.AddEdge(fmt.Sprintf("\"%s\"", c.ID.String()), fmt.Sprintf("\"%s\"", d.ID.String()), true, nil)
+			eAttrs := map[string]string{
+				"arrowsize": "0.75",
+				"penwidth":  "0.75",
+			}
+			err = g.AddEdge(fmt.Sprintf("\"%s\"", c.ID.String()), fmt.Sprintf("\"%s\"", d.ID.String()), true, eAttrs)
 			if err != nil {
 				return "", err
 			}
