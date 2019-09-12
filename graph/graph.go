@@ -14,7 +14,10 @@ func NewComponents() *Components {
 
 func (cs *Components) Get(cid ComponentID) (*Component, bool) {
 	c, ok := cs.Components[cid]
-	return c, ok
+	if !ok {
+		return newComponent(cid), false
+	}
+	return c, true
 }
 
 func (cs *Components) Add(c *Component) error {
@@ -43,8 +46,12 @@ type Component struct {
 }
 
 func NewComponent(name string) *Component {
+	return newComponent(NewComponentID(name))
+}
+
+func newComponent(cid ComponentID) *Component {
 	return &Component{
-		ID:           NewComponentID(name),
+		ID:           cid,
 		Labels:       map[string][]string{},
 		Dependencies: []ComponentID{},
 	}

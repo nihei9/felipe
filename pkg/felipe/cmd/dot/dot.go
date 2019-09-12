@@ -191,10 +191,7 @@ func genDot(group *graph.Components, cs *graph.Components, fs []*graph.Face) (st
 			return "", err
 		}
 		for _, dcid := range c.Dependencies {
-			d, ok := cs.Get(dcid)
-			if !ok {
-				return "", fmt.Errorf("unknown component `%s`", dcid)
-			}
+			d, _ := cs.Get(dcid)
 			nAttrs, err := genAttributes(d, fs)
 			nAttrs["penwidth"] = "0.75"
 			if err != nil {
