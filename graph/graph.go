@@ -38,7 +38,6 @@ func NewComponentID(name string) ComponentID {
 
 type Component struct {
 	ID           ComponentID
-	Name         string
 	Labels       map[string][]string
 	Dependencies []ComponentID
 }
@@ -46,7 +45,6 @@ type Component struct {
 func NewComponent(name string) *Component {
 	return &Component{
 		ID:           NewComponentID(name),
-		Name:         name,
 		Labels:       map[string][]string{},
 		Dependencies: []ComponentID{},
 	}
