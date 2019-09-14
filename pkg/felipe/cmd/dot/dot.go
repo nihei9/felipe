@@ -57,7 +57,7 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 
 		for _, cDef := range def.Components {
-			c := graph.NewComponent(cDef.Name)
+			c := graph.NewComponent(cDef.Name, cDef.Base, !cDef.Hide)
 			for k, vs := range cDef.Labels {
 				for _, v := range vs {
 					c.Label(k, v)
@@ -71,6 +71,10 @@ func run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		}
+	}
+	err = cs.Complement()
+	if err != nil {
+		return err
 	}
 
 	fs := []*graph.Face{}
@@ -116,7 +120,13 @@ func run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		err := writeDot(cs, cs, fs, flagOutputFile)
+		cond := graph.NewCondition()
+		cond.AddMatcher(graph.NewAnyMatcher())
+		group, err := graph.Query(cs, cond, nil)
+		if err != nil {
+			return err
+		}
+		err = writeDot(group, cs, fs, flagOutputFile)
 		if err != nil {
 			return err
 		}
@@ -186,18 +196,18 @@ func genDot(group *graph.Components, cs *graph.Components, fs []*graph.Face) (st
 		if err != nil {
 			return "", err
 		}
-		err = g.AddNode("G", fmt.Sprintf("\"%s\"", c.ID.String()), nAttrs)
+		err = g.AddNode("G", fmt.Sprintf("\"%s\"", c.ID().String()), nAttrs)
 		if err != nil {
 			return "", err
 		}
-		for _, dcid := range c.Dependencies {
+		for _, dcid := range c.Dependencies() {
 			d, _ := cs.Get(dcid)
 			nAttrs, err := genAttributes(d, fs)
 			nAttrs["penwidth"] = "0.75"
 			if err != nil {
 				return "", err
 			}
-			err = g.AddNode("G", fmt.Sprintf("\"%s\"", d.ID.String()), nAttrs)
+			err = g.AddNode("G", fmt.Sprintf("\"%s\"", d.ID().String()), nAttrs)
 			if err != nil {
 				return "", err
 			}
@@ -206,7 +216,7 @@ func genDot(group *graph.Components, cs *graph.Components, fs []*graph.Face) (st
 				"arrowsize": "0.75",
 				"penwidth":  "0.75",
 			}
-			err = g.AddEdge(fmt.Sprintf("\"%s\"", c.ID.String()), fmt.Sprintf("\"%s\"", d.ID.String()), true, eAttrs)
+			err = g.AddEdge(fmt.Sprintf("\"%s\"", c.ID().String()), fmt.Sprintf("\"%s\"", d.ID().String()), true, eAttrs)
 			if err != nil {
 				return "", err
 			}
