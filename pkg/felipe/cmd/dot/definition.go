@@ -58,6 +58,8 @@ func (def *definition) validateAndComplement() error {
 
 type component struct {
 	Name         string                `yaml:"name"`
+	Base         string                `yaml:"base"`
+	Hide         bool                  `yaml:"hide"`
 	RawLabels    interface{}           `yaml:"labels"`
 	Labels       map[string][]string   `yaml:"-"`
 	Dependencies []*dependentComponent `yaml:"dependencies"`

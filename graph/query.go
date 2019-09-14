@@ -20,6 +20,9 @@ func Query(cs *Components, cond *Condition, _ *ComplementMethod) (*Components, e
 }
 
 func Match(c *Component, cond *Condition) (bool, error) {
+	if !c.queryable {
+		return false, nil
+	}
 	for _, m := range cond.matchers {
 		ok, err := m.Match(c)
 		if err != nil {
@@ -51,6 +54,18 @@ type Matcher interface {
 	Match(*Component) (bool, error)
 }
 
+// AnyMatcher is implementation of the Matcher interface.
+type AnyMatcher struct {
+}
+
+func NewAnyMatcher() *AnyMatcher {
+	return &AnyMatcher{}
+}
+
+func (m *AnyMatcher) Match(c *Component) (bool, error) {
+	return true, nil
+}
+
 // LabelsMatcher is implementation of the Matcher interface.
 type LabelsMatcher struct {
 	labels map[string]string
@@ -69,7 +84,7 @@ func NewLabelsMatcher(labels map[string]string) *LabelsMatcher {
 
 func (m *LabelsMatcher) Match(c *Component) (bool, error) {
 	for condK, condV := range m.labels {
-		vs, ok := c.Labels[condK]
+		vs, ok := c.Labels()[condK]
 		for _, v := range vs {
 			if ok && v == condV {
 				return true, nil
