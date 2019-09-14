@@ -2,7 +2,7 @@ package graph
 
 func Query(cs *Components, cond *Condition, _ *ComplementMethod) (*Components, error) {
 	matches := NewComponents()
-	for _, c := range cs.Components {
+	for _, c := range cs.components {
 		ok, err := Match(c, cond)
 		if err != nil {
 			return nil, err
@@ -10,7 +10,7 @@ func Query(cs *Components, cond *Condition, _ *ComplementMethod) (*Components, e
 		if !ok {
 			continue
 		}
-		err = matches.Add(c)
+		err = matches.add(c)
 		if err != nil {
 			return nil, err
 		}

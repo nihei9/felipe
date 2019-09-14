@@ -66,10 +66,7 @@ func run(cmd *cobra.Command, args []string) error {
 			for _, dDef := range cDef.Dependencies {
 				c.DependOn(graph.NewComponentID(dDef.Name))
 			}
-			err := cs.Add(c)
-			if err != nil {
-				return err
-			}
+			cs.Add(c)
 		}
 	}
 	err = cs.Complement()
@@ -190,7 +187,7 @@ func genDot(group *graph.Components, cs *graph.Components, fs []*graph.Face) (st
 	g.AddAttr("G", "rankdir", "LR")
 	g.AddAttr("G", "fontsize", "11.0")
 
-	for _, c := range group.Components {
+	for _, c := range group.Components() {
 		nAttrs, err := genAttributes(c, fs)
 		nAttrs["penwidth"] = "0.75"
 		if err != nil {
