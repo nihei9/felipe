@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/awalterschulze/gographviz"
 	"github.com/nihei9/felipe/graph"
@@ -16,7 +15,6 @@ import (
 var (
 	flagSrcDir     string
 	flagOutputFile string
-	flagLabel      string
 	flagFaceFile   string
 )
 
@@ -29,7 +27,6 @@ func NewCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&flagSrcDir, "src_dir", "s", "./", "directory to read definitions of components from")
 	cmd.Flags().StringVarP(&flagOutputFile, "output_file", "o", "", "file path to write DOT to (default: stdout)")
-	cmd.Flags().StringVarP(&flagLabel, "label", "l", "", "query label")
 	cmd.Flags().StringVarP(&flagFaceFile, "face", "f", "", "file path that defines faces for image generates from DOT")
 
 	return cmd
@@ -98,35 +95,9 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if flagLabel != "" {
-		l := strings.Split(flagLabel, "=")
-		if len(l) != 2 {
-			return fmt.Errorf("query label is malformed; got: %v", flagLabel)
-		}
-		condK := strings.TrimSpace(l[0])
-		condV := strings.TrimSpace(l[1])
-
-		cond := graph.NewCondition()
-		cond.AddMatcher(graph.NewLabelsMatcher(map[string]string{condK: condV}))
-		group, err := graph.Query(cs, cond, nil)
-		if err != nil {
-			return err
-		}
-		err = writeDot(group, cs, fs, flagOutputFile)
-		if err != nil {
-			return err
-		}
-	} else {
-		cond := graph.NewCondition()
-		cond.AddMatcher(graph.NewAnyMatcher())
-		group, err := graph.Query(cs, cond, nil)
-		if err != nil {
-			return err
-		}
-		err = writeDot(group, cs, fs, flagOutputFile)
-		if err != nil {
-			return err
-		}
+	err = writeDot(cs, cs, fs, flagOutputFile)
+	if err != nil {
+		return err
 	}
 
 	return nil
