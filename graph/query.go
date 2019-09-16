@@ -1,7 +1,9 @@
 package graph
 
+import "fmt"
+
 func Query(cs *Components, cond *Condition, _ *ComplementMethod) (*Components, error) {
-	matches := NewComponents()
+	result := NewComponents()
 	for _, c := range cs.components {
 		ok, err := Match(c, cond)
 		if err != nil {
@@ -10,13 +12,42 @@ func Query(cs *Components, cond *Condition, _ *ComplementMethod) (*Components, e
 		if !ok {
 			continue
 		}
-		err = matches.add(c)
+		err = result.add(c)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return matches, nil
+	// complement a result
+	ds := []ComponentID{}
+	for _, c := range result.Components() {
+		for _, d := range c.Dependencies() {
+			ds = append(ds, d)
+		}
+	}
+	for len(ds) > 0 {
+		dds := []ComponentID{}
+		for _, d := range ds {
+			if _, ok := result.Get(d); ok {
+				continue
+			}
+			dc, ok := cs.Get(d)
+			if !ok {
+				return nil, fmt.Errorf("component `%v` does not exist", d)
+			}
+			result.add(dc)
+
+			for _, dd := range dc.Dependencies() {
+				if _, ok := result.Get(dd); ok {
+					continue
+				}
+				dds = append(dds, dd)
+			}
+		}
+		ds = dds
+	}
+
+	return result, nil
 }
 
 func Match(c *Component, cond *Condition) (bool, error) {
