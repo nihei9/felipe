@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"github.com/awalterschulze/gographviz"
 	"github.com/nihei9/felipe/graph"
@@ -13,7 +12,7 @@ import (
 )
 
 var (
-	flagSrcDir     string
+	flagSrcFile    string
 	flagOutputFile string
 	flagFaceFile   string
 )
@@ -25,7 +24,7 @@ func NewCmd() *cobra.Command {
 		Long:  "dot generate .dot files.",
 		RunE:  run,
 	}
-	cmd.Flags().StringVarP(&flagSrcDir, "src_dir", "s", "./", "directory to read definitions of components from")
+	cmd.Flags().StringVarP(&flagSrcFile, "src_file", "s", "", "file path that defines components (default: stdin)")
 	cmd.Flags().StringVarP(&flagOutputFile, "output_file", "o", "", "file path to write DOT to (default: stdout)")
 	cmd.Flags().StringVarP(&flagFaceFile, "face", "f", "", "file path that defines faces for image generates from DOT")
 
@@ -33,14 +32,8 @@ func NewCmd() *cobra.Command {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	defFiles, err := listDefinitionFiles(flagSrcDir)
-	if err != nil {
-		return err
-	}
-
-	cs := graph.NewComponents()
-	for _, defFile := range defFiles {
-		def, err := readDefinition(defFile)
+	def, err := readDefinition(flagSrcFile)
+	{
 		if err != nil {
 			return err
 		}
@@ -48,11 +41,13 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-
 		if def.Kind != definitionKindComponents {
-			continue
+			return fmt.Errorf("the specified definition is not `components`")
 		}
+	}
 
+	cs := graph.NewComponents()
+	{
 		for _, cDef := range def.Components {
 			c := graph.NewComponent(cDef.Name, cDef.Base, !cDef.Hide)
 			for k, vs := range cDef.Labels {
@@ -65,10 +60,10 @@ func run(cmd *cobra.Command, args []string) error {
 			}
 			cs.Add(c)
 		}
-	}
-	err = cs.Complement()
-	if err != nil {
-		return err
+		err = cs.Complement()
+		if err != nil {
+			return err
+		}
 	}
 
 	fs := []*graph.Face{}
@@ -103,25 +98,28 @@ func run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func listDefinitionFiles(srcDir string) ([]string, error) {
-	return filepath.Glob(filepath.Join(srcDir, "*.yaml"))
-}
-
 func readDefinition(filePath string) (*definition, error) {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	src, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
 	def := &definition{}
-	err = yaml.Unmarshal(src, def)
-	if err != nil {
-		return nil, err
+	if filePath != "" {
+		f, err := os.Open(filePath)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+
+		src, err := ioutil.ReadAll(f)
+		if err != nil {
+			return nil, err
+		}
+		err = yaml.Unmarshal(src, def)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := yaml.NewDecoder(os.Stdin).Decode(def)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return def, nil
