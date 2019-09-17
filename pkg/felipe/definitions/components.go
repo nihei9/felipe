@@ -1,25 +1,25 @@
-package query
+package definitions
 
 import "fmt"
 
 const (
-	definitionKindComponents = "components"
+	DefinitionKindComponents = "components"
 )
 
-type definition struct {
+type ComponentsDefinition struct {
 	Version    string       `yaml:"version"`
 	Kind       string       `yaml:"kind"`
-	Components []*component `yaml:"components"`
+	Components []*Component `yaml:"components"`
 }
 
-func (def *definition) validateAndComplement() error {
+func (def *ComponentsDefinition) ValidateAndComplement() error {
 	if def.Version == "" {
 		return fmt.Errorf("`version` must be specified")
 	}
 	if def.Kind == "" {
 		return fmt.Errorf("`kind` must be specified")
 	}
-	if def.Kind != definitionKindComponents {
+	if def.Kind != DefinitionKindComponents {
 		return fmt.Errorf("`kind` must be `components`")
 	}
 	if len(def.Components) <= 0 {
@@ -35,16 +35,16 @@ func (def *definition) validateAndComplement() error {
 	return nil
 }
 
-type component struct {
+type Component struct {
 	Name         string                `yaml:"name"`
 	Base         string                `yaml:"base,omitempty"`
 	Hide         bool                  `yaml:"hide,omitempty"`
 	RawLabels    interface{}           `yaml:"labels,omitempty"`
 	Labels       map[string][]string   `yaml:"-"`
-	Dependencies []*dependentComponent `yaml:"dependencies,omitempty"`
+	Dependencies []*DependentComponent `yaml:"dependencies,omitempty"`
 }
 
-func (c *component) validateAndComplement() error {
+func (c *Component) validateAndComplement() error {
 	c.Labels = map[string][]string{}
 
 	if c.Name == "" {
@@ -90,11 +90,11 @@ func (c *component) validateAndComplement() error {
 	return nil
 }
 
-type dependentComponent struct {
+type DependentComponent struct {
 	Name string `yaml:"name"`
 }
 
-func (dc *dependentComponent) validateAndComplement() error {
+func (dc *DependentComponent) validateAndComplement() error {
 	if dc.Name == "" {
 		return fmt.Errorf("`dependencies[].name` must be specified")
 	}
