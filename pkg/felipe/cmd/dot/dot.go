@@ -38,7 +38,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = def.ValidateAndComplement()
+		err = def.Validate()
 		if err != nil {
 			return err
 		}
@@ -73,7 +73,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = def.ValidateAndComplement()
+		err = def.Validate()
 		if err != nil {
 			return err
 		}

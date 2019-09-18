@@ -12,7 +12,7 @@ type FacesDefinition struct {
 	Faces   []*Face `yaml:"faces"`
 }
 
-func (def *FacesDefinition) ValidateAndComplement() error {
+func (def *FacesDefinition) Validate() error {
 	if def.Version == "" {
 		return fmt.Errorf("`version` must be specified")
 	}
@@ -26,7 +26,7 @@ func (def *FacesDefinition) ValidateAndComplement() error {
 		return fmt.Errorf("`faces` must contain at least one face")
 	}
 	for _, f := range def.Faces {
-		err := f.validateAndComplement()
+		err := f.validate()
 		if err != nil {
 			return err
 		}
@@ -40,7 +40,7 @@ type Face struct {
 	Attributes map[string]string `yaml:"attributes"`
 }
 
-func (f *Face) validateAndComplement() error {
+func (f *Face) validate() error {
 	return nil
 }
 

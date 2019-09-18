@@ -43,7 +43,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = def.ValidateAndComplement()
+		err = def.Validate()
 		if err != nil {
 			continue
 		}
@@ -137,7 +137,7 @@ func writeResult(cs *graph.Components) error {
 		components = append(components, &definitions.Component{
 			Name:         c.ID().String(),
 			Hide:         false,
-			RawLabels:    c.Labels(),
+			Labels:       c.Labels(),
 			Dependencies: deps,
 		})
 	}

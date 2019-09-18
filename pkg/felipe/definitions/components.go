@@ -1,6 +1,8 @@
 package definitions
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	DefinitionKindComponents = "components"
@@ -12,7 +14,7 @@ type ComponentsDefinition struct {
 	Components []*Component `yaml:"components"`
 }
 
-func (def *ComponentsDefinition) ValidateAndComplement() error {
+func (def *ComponentsDefinition) Validate() error {
 	if def.Version == "" {
 		return fmt.Errorf("`version` must be specified")
 	}
@@ -26,7 +28,7 @@ func (def *ComponentsDefinition) ValidateAndComplement() error {
 		return fmt.Errorf("`components` must contain at least one content")
 	}
 	for _, c := range def.Components {
-		err := c.validateAndComplement()
+		err := c.validate()
 		if err != nil {
 			return err
 		}
@@ -39,22 +41,28 @@ type Component struct {
 	Name         string                `yaml:"name"`
 	Base         string                `yaml:"base,omitempty"`
 	Hide         bool                  `yaml:"hide,omitempty"`
-	RawLabels    interface{}           `yaml:"labels,omitempty"`
-	Labels       map[string][]string   `yaml:"-"`
+	Labels       map[string][]string   `yaml:"labels,omitempty"`
 	Dependencies []*DependentComponent `yaml:"dependencies,omitempty"`
 }
 
-func (c *Component) validateAndComplement() error {
-	c.Labels = map[string][]string{}
-
-	if c.Name == "" {
-		return fmt.Errorf("`componets[].name` must be specified")
+func (c *Component) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	comp := &struct {
+		Name         string                `yaml:"name"`
+		Base         string                `yaml:"base"`
+		Hide         bool                  `yaml:"hide"`
+		Labels       interface{}           `yaml:"labels"`
+		Dependencies []*DependentComponent `yaml:"dependencies"`
+	}{}
+	err := unmarshal(comp)
+	if err != nil {
+		return err
 	}
 
-	if c.RawLabels != nil {
-		rawLabels, ok := c.RawLabels.(map[interface{}]interface{})
+	labels := map[string][]string{}
+	if comp.Labels != nil {
+		rawLabels, ok := comp.Labels.(map[interface{}]interface{})
 		if !ok {
-			return fmt.Errorf("`labels` is malformed")
+			return fmt.Errorf("`labels` must be map[string]string or map[string][]string")
 		}
 		for rawKey, rawValues := range rawLabels {
 			key, ok := rawKey.(string)
@@ -63,25 +71,38 @@ func (c *Component) validateAndComplement() error {
 			}
 			switch values := rawValues.(type) {
 			case string:
-				c.Labels[key] = []string{values}
+				labels[key] = []string{values}
 			case []interface{}:
 				s := []string{}
 				for _, value := range values {
 					v, ok := value.(string)
 					if !ok {
-						return fmt.Errorf("a value of `labels` must be string")
+						return fmt.Errorf("a value of `labels` must be string or []string")
 					}
 					s = append(s, v)
 				}
-				c.Labels[key] = s
+				labels[key] = s
 			default:
-				return fmt.Errorf("`labels` is malformed")
+				return fmt.Errorf("a value of `labels` must be string or []string")
 			}
 		}
 	}
 
+	c.Name = comp.Name
+	c.Base = comp.Base
+	c.Hide = comp.Hide
+	c.Labels = labels
+	c.Dependencies = comp.Dependencies
+
+	return nil
+}
+
+func (c *Component) validate() error {
+	if c.Name == "" {
+		return fmt.Errorf("`componets[].name` must be specified")
+	}
 	for _, dc := range c.Dependencies {
-		err := dc.validateAndComplement()
+		err := dc.validate()
 		if err != nil {
 			return err
 		}
@@ -94,7 +115,7 @@ type DependentComponent struct {
 	Name string `yaml:"name"`
 }
 
-func (dc *DependentComponent) validateAndComplement() error {
+func (dc *DependentComponent) validate() error {
 	if dc.Name == "" {
 		return fmt.Errorf("`dependencies[].name` must be specified")
 	}
