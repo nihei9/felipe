@@ -2,6 +2,7 @@ package dot
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 
@@ -13,9 +14,8 @@ import (
 )
 
 var (
-	flagSrcFile    string
-	flagOutputFile string
-	flagFaceFile   string
+	flagSrcFile  string
+	flagFaceFile string
 )
 
 func NewCmd() *cobra.Command {
@@ -26,7 +26,6 @@ func NewCmd() *cobra.Command {
 		RunE:  run,
 	}
 	cmd.Flags().StringVarP(&flagSrcFile, "src_file", "s", "", "file path that defines components (default: stdin)")
-	cmd.Flags().StringVarP(&flagOutputFile, "output_file", "o", "", "file path to write DOT to (default: stdout)")
 	cmd.Flags().StringVarP(&flagFaceFile, "face", "f", "", "file path that defines faces for image generates from DOT")
 
 	return cmd
@@ -91,7 +90,7 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = writeDot(cs, cs, fs, flagOutputFile)
+	err = writeDot(cs, cs, fs, os.Stdout)
 	if err != nil {
 		return err
 	}
@@ -146,22 +145,15 @@ func readFacesDefinition(filePath string) (*definitions.FacesDefinition, error) 
 	return def, nil
 }
 
-func writeDot(group *graph.Components, cs *graph.Components, fs []*graph.Face, filePath string) error {
+func writeDot(group *graph.Components, cs *graph.Components, fs []*graph.Face, w io.Writer) error {
 	dot, err := genDot(group, cs, fs)
 	if err != nil {
 		return err
 	}
 
-	if flagOutputFile != "" {
-		f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		f.Write([]byte(dot))
-	} else {
-		fmt.Printf(dot)
+	_, err = fmt.Fprint(w, dot)
+	if err != nil {
+		return err
 	}
 
 	return nil
