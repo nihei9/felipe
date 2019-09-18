@@ -14,8 +14,7 @@ import (
 )
 
 var (
-	flagSrcDir string
-	flagLabel  string
+	flagLabel string
 )
 
 func NewCmd() *cobra.Command {
@@ -23,16 +22,16 @@ func NewCmd() *cobra.Command {
 		Use:   "query",
 		Short: "query generate a set of components specified by a query.",
 		Long:  "query generate a set of components specified by a query.",
+		Args:  cobra.ExactArgs(1),
 		RunE:  run,
 	}
-	cmd.Flags().StringVarP(&flagSrcDir, "src_dir", "s", "./", "directory to read definitions of components from")
 	cmd.Flags().StringVarP(&flagLabel, "label", "l", "", "query label")
 
 	return cmd
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	defFiles, err := listDefinitionFiles(flagSrcDir)
+	defFiles, err := listDefinitionFiles(args[0])
 	if err != nil {
 		return err
 	}
