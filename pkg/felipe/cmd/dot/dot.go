@@ -7,6 +7,7 @@ import (
 
 	"github.com/awalterschulze/gographviz"
 	"github.com/nihei9/felipe/graph"
+	"github.com/nihei9/felipe/pkg/felipe/definitions"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
@@ -32,16 +33,16 @@ func NewCmd() *cobra.Command {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	def, err := readDefinition(flagSrcFile)
+	def, err := readComponentsDefinition(flagSrcFile)
 	{
 		if err != nil {
 			return err
 		}
-		err = def.validateAndComplement()
+		err = def.Validate()
 		if err != nil {
 			return err
 		}
-		if def.Kind != definitionKindComponents {
+		if def.Kind != definitions.DefinitionKindComponents {
 			return fmt.Errorf("the specified definition is not `components`")
 		}
 	}
@@ -68,16 +69,16 @@ func run(cmd *cobra.Command, args []string) error {
 
 	fs := []*graph.Face{}
 	if flagFaceFile != "" {
-		def, err := readDefinition(flagFaceFile)
+		def, err := readFacesDefinition(flagFaceFile)
 		if err != nil {
 			return err
 		}
-		err = def.validateAndComplement()
+		err = def.Validate()
 		if err != nil {
 			return err
 		}
 
-		if def.Kind != definitionKindFaces {
+		if def.Kind != definitions.DefinitionKindFaces {
 			return fmt.Errorf("kind of specified face file is not `faces`; got: %v", def.Kind)
 		}
 
@@ -98,8 +99,8 @@ func run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func readDefinition(filePath string) (*definition, error) {
-	def := &definition{}
+func readComponentsDefinition(filePath string) (*definitions.ComponentsDefinition, error) {
+	def := &definitions.ComponentsDefinition{}
 	if filePath != "" {
 		f, err := os.Open(filePath)
 		if err != nil {
@@ -120,6 +121,26 @@ func readDefinition(filePath string) (*definition, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	return def, nil
+}
+
+func readFacesDefinition(filePath string) (*definitions.FacesDefinition, error) {
+	def := &definitions.FacesDefinition{}
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	src, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	err = yaml.Unmarshal(src, def)
+	if err != nil {
+		return nil, err
 	}
 
 	return def, nil

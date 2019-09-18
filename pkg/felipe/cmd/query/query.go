@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nihei9/felipe/graph"
+	"github.com/nihei9/felipe/pkg/felipe/definitions"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
@@ -42,11 +43,11 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = def.validateAndComplement()
+		err = def.Validate()
 		if err != nil {
 			continue
 		}
-		if def.Kind != definitionKindComponents {
+		if def.Kind != definitions.DefinitionKindComponents {
 			continue
 		}
 
@@ -103,7 +104,7 @@ func listDefinitionFiles(srcDir string) ([]string, error) {
 	return filepath.Glob(filepath.Join(srcDir, "*.yaml"))
 }
 
-func readDefinition(filePath string) (*definition, error) {
+func readDefinition(filePath string) (*definitions.ComponentsDefinition, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -114,7 +115,7 @@ func readDefinition(filePath string) (*definition, error) {
 	if err != nil {
 		return nil, err
 	}
-	def := &definition{}
+	def := &definitions.ComponentsDefinition{}
 	err = yaml.Unmarshal(src, def)
 	if err != nil {
 		return nil, err
@@ -124,26 +125,26 @@ func readDefinition(filePath string) (*definition, error) {
 }
 
 func writeResult(cs *graph.Components) error {
-	components := []*component{}
+	components := []*definitions.Component{}
 	for _, c := range cs.Components() {
-		deps := []*dependentComponent{}
+		deps := []*definitions.DependentComponent{}
 		for _, d := range c.Dependencies() {
-			deps = append(deps, &dependentComponent{
+			deps = append(deps, &definitions.DependentComponent{
 				Name: d.String(),
 			})
 		}
 
-		components = append(components, &component{
+		components = append(components, &definitions.Component{
 			Name:         c.ID().String(),
 			Hide:         false,
-			RawLabels:    c.Labels(),
+			Labels:       c.Labels(),
 			Dependencies: deps,
 		})
 	}
 
-	def := &definition{
+	def := &definitions.ComponentsDefinition{
 		Version:    "1",
-		Kind:       definitionKindComponents,
+		Kind:       definitions.DefinitionKindComponents,
 		Components: components,
 	}
 
