@@ -1,7 +1,5 @@
 package graph
 
-import "fmt"
-
 func Query(cs *Components, cond *Condition, _ *ComplementMethod) (*Components, error) {
 	result := NewComponents()
 	for _, c := range cs.components {
@@ -31,10 +29,7 @@ func Query(cs *Components, cond *Condition, _ *ComplementMethod) (*Components, e
 			if _, ok := result.Get(d); ok {
 				continue
 			}
-			dc, ok := cs.Get(d)
-			if !ok {
-				return nil, fmt.Errorf("component `%v` does not exist", d)
-			}
+			dc, _ := cs.Get(d)
 			result.add(dc)
 
 			for _, dd := range dc.Dependencies() {
