@@ -25,7 +25,9 @@ func (cs *Components) Components() map[ComponentID]*Component {
 func (cs *Components) Get(cid ComponentID) (*Component, bool) {
 	c, ok := cs.components[cid]
 	if !ok {
-		return newComponent(cid, NewComponentID(""), true), false
+		c := newComponent(cid, NewComponentID(""), true)
+		c.Label("__undefined__", "true")
+		return c, false
 	}
 	return c, true
 }
