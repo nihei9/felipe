@@ -7,13 +7,13 @@ import (
 
 type Components struct {
 	components map[ComponentID]*Component
-	tmpList    []*Component
+	buffer     map[*Component]*Component
 }
 
 func NewComponents() *Components {
 	return &Components{
 		components: map[ComponentID]*Component{},
-		tmpList:    []*Component{},
+		buffer:     map[*Component]*Component{},
 	}
 }
 
@@ -32,7 +32,15 @@ func (cs *Components) Get(cid ComponentID) (*Component, bool) {
 }
 
 func (cs *Components) Add(c *Component) {
-	cs.tmpList = append(cs.tmpList, c)
+	cs.buffer[c] = c
+}
+
+func (cs *Components) get(cid ComponentID) (*Component, bool) {
+	c, ok := cs.components[cid]
+	if !ok {
+		return nil, false
+	}
+	return c, true
 }
 
 func (cs *Components) add(c *Component) error {
@@ -45,94 +53,47 @@ func (cs *Components) add(c *Component) error {
 }
 
 func (cs *Components) Complement() error {
-	for _, c := range cs.tmpList {
-		placeholders := []string{}
-		capture := false
-		var start int
-		var end int
-		for i, char := range c.ID().String() {
-			switch char {
-			case '{':
-				if capture {
-					return fmt.Errorf("an embeded label cannot be nested")
-				}
-				capture = true
-				start = i
-			case '}':
-				if !capture {
-					return fmt.Errorf("an embeded label is malformed")
-				}
-				capture = false
-				end = i
-
-				placeholder := c.ID().String()[start : end+1]
-				placeholders = append(placeholders, placeholder)
-			}
+	for _, c := range cs.buffer {
+		if c.base != "" {
+			continue
 		}
 
-		embeddedValues := []string{}
-		for _, p := range placeholders {
-			labelName := strings.TrimSpace(p[1 : len(p)-1])
-			vs, ok := c.Labels()[labelName]
+		err := c.complement(nil)
+		if err != nil {
+			return err
+		}
+		err = cs.add(c)
+		if err != nil {
+			return err
+		}
+		delete(cs.buffer, c)
+	}
+	if len(cs.components) <= 0 {
+		return fmt.Errorf("components may contain cyclic inheritance or inheritance of undefined components")
+	}
+
+	for len(cs.buffer) > 0 {
+		num := 0
+		for _, c := range cs.buffer {
+			base, ok := cs.get(c.base)
 			if !ok {
-				return fmt.Errorf("undefined label `%s` cannot use in `name` directive", labelName)
+				continue
 			}
-			if len(vs) != 1 {
-				return fmt.Errorf("a label used as the embeded label must have just one value; `%s` has %v values", labelName, len(vs))
+			err := c.complement(base)
+			if err != nil {
+				return err
 			}
-			embeddedValues = append(embeddedValues, vs[0])
+			err = cs.add(c)
+			if err != nil {
+				return err
+			}
+			delete(cs.buffer, c)
+			num++
 		}
-
-		id := c.ID().String()
-		for i, p := range placeholders {
-			id = strings.Replace(id, p, embeddedValues[i], 1)
-		}
-		c.id = NewComponentID(id)
-
-		err := cs.add(c)
-		if err != nil {
-			return err
+		if num <= 0 {
+			return fmt.Errorf("components may contain cyclic inheritance or inheritance of undefined components")
 		}
 	}
-	for _, c := range cs.components {
-		err := complement(c, cs, []ComponentID{})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func complement(c *Component, cs *Components, stack []ComponentID) error {
-	if c.complemented {
-		return nil
-	}
-
-	if c.base.Nil() {
-		c.complemented = true
-
-		return nil
-	}
-	for _, cid := range stack {
-		if cid == c.ID() {
-			return fmt.Errorf("cyclic inheritance is not allowed\n%v", stack)
-		}
-	}
-	base, ok := cs.Get(c.base)
-	if !ok {
-		return fmt.Errorf("it is not allowed to inherit the undefined component; %v", c.base)
-	}
-	complement(base, cs, append(stack, c.ID()))
-	for k, vs := range base.Labels() {
-		for _, v := range vs {
-			c.Label(k, v)
-		}
-	}
-	for _, v := range base.Dependencies() {
-		c.DependOn(v)
-	}
-	c.complemented = true
 
 	return nil
 }
@@ -160,7 +121,6 @@ type Component struct {
 	queryable    bool
 	labels       map[string][]string
 	dependencies []ComponentID
-	complemented bool
 }
 
 func NewComponent(name string, base string, queryable bool) *Component {
@@ -174,7 +134,6 @@ func newComponent(cid ComponentID, base ComponentID, queryable bool) *Component 
 		queryable:    queryable,
 		labels:       map[string][]string{},
 		dependencies: []ComponentID{},
-		complemented: false,
 	}
 }
 
@@ -200,6 +159,99 @@ func (c *Component) Dependencies() []ComponentID {
 
 func (c *Component) DependOn(cid ComponentID) {
 	c.dependencies = append(c.dependencies, cid)
+}
+
+func (c *Component) complement(base *Component) error {
+	err := c.inherit(base)
+	if err != nil {
+		return err
+	}
+
+	err = c.constructID()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Component) inherit(base *Component) error {
+	if base == nil {
+		return nil
+	}
+
+	for k, vs := range base.Labels() {
+		cVs := c.Labels()[k]
+		for _, v := range vs {
+			alreadyExists := false
+			for _, cV := range cVs {
+				if cV == v {
+					continue
+				}
+
+				alreadyExists = true
+				break
+			}
+			if alreadyExists {
+				continue
+			}
+
+			c.Label(k, v)
+		}
+	}
+
+	for _, v := range base.Dependencies() {
+		c.DependOn(v)
+	}
+
+	return nil
+}
+
+func (c *Component) constructID() error {
+	placeholders := []string{}
+	capture := false
+	var start int
+	var end int
+	for i, char := range c.ID().String() {
+		switch char {
+		case '{':
+			if capture {
+				return fmt.Errorf("an embeded label cannot be nested")
+			}
+			capture = true
+			start = i
+		case '}':
+			if !capture {
+				return fmt.Errorf("an embeded label is malformed")
+			}
+			capture = false
+			end = i
+
+			placeholder := c.ID().String()[start : end+1]
+			placeholders = append(placeholders, placeholder)
+		}
+	}
+
+	embeddedValues := []string{}
+	for _, p := range placeholders {
+		labelName := strings.TrimSpace(p[1 : len(p)-1])
+		vs, ok := c.Labels()[labelName]
+		if !ok {
+			return fmt.Errorf("undefined label `%s` cannot use in `name` directive", labelName)
+		}
+		if len(vs) != 1 {
+			return fmt.Errorf("a label used as the embeded label must have just one value; `%s` has %v values", labelName, len(vs))
+		}
+		embeddedValues = append(embeddedValues, vs[0])
+	}
+
+	id := c.ID().String()
+	for i, p := range placeholders {
+		id = strings.Replace(id, p, embeddedValues[i], 1)
+	}
+	c.id = NewComponentID(id)
+
+	return nil
 }
 
 type Face struct {
