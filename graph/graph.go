@@ -181,7 +181,21 @@ func (c *Component) inherit(base *Component) error {
 	}
 
 	for k, vs := range base.Labels() {
+		cVs := c.Labels()[k]
 		for _, v := range vs {
+			alreadyExists := false
+			for _, cV := range cVs {
+				if cV == v {
+					continue
+				}
+
+				alreadyExists = true
+				break
+			}
+			if alreadyExists {
+				continue
+			}
+
 			c.Label(k, v)
 		}
 	}
