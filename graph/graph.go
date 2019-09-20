@@ -2,7 +2,6 @@ package graph
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 )
 
@@ -38,7 +37,7 @@ func (cs *Components) Add(c *Component) {
 
 func (cs *Components) add(c *Component) error {
 	if _, ok := cs.components[c.ID()]; ok {
-		return fmt.Errorf("component `%v` already exists", c.ID)
+		return fmt.Errorf("component `%v` already exists", c.ID())
 	}
 	cs.components[c.ID()] = c
 
@@ -47,12 +46,33 @@ func (cs *Components) add(c *Component) error {
 
 func (cs *Components) Complement() error {
 	for _, c := range cs.tmpList {
-		re := regexp.MustCompile(`\{.*\}`)
-		matches := re.FindSubmatch([]byte(c.ID().String()))
+		placeholders := []string{}
+		capture := false
+		var start int
+		var end int
+		for i, char := range c.ID().String() {
+			switch char {
+			case '{':
+				if capture {
+					return fmt.Errorf("an embeded label cannot be nested")
+				}
+				capture = true
+				start = i
+			case '}':
+				if !capture {
+					return fmt.Errorf("an embeded label is malformed")
+				}
+				capture = false
+				end = i
+
+				placeholder := c.ID().String()[start : end+1]
+				placeholders = append(placeholders, placeholder)
+			}
+		}
+
 		embeddedValues := []string{}
-		for _, m := range matches {
-			s := string(m)
-			labelName := strings.TrimSpace(s[1 : len(s)-1])
+		for _, p := range placeholders {
+			labelName := strings.TrimSpace(p[1 : len(p)-1])
 			vs, ok := c.Labels()[labelName]
 			if !ok {
 				return fmt.Errorf("undefined label `%s` cannot use in `name` directive", labelName)
@@ -62,9 +82,10 @@ func (cs *Components) Complement() error {
 			}
 			embeddedValues = append(embeddedValues, vs[0])
 		}
+
 		id := c.ID().String()
-		for i, m := range matches {
-			id = strings.Replace(id, string(m), embeddedValues[i], 1)
+		for i, p := range placeholders {
+			id = strings.Replace(id, p, embeddedValues[i], 1)
 		}
 		c.id = NewComponentID(id)
 
