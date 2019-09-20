@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/awalterschulze/gographviz"
 	"github.com/nihei9/felipe/graph"
@@ -216,7 +217,52 @@ func genAttributes(c *graph.Component, fs []*graph.Face) (map[string]string, err
 			continue
 		}
 		for k, v := range f.Attributes {
-			attrs[k] = v
+			if k == "label" {
+				placeholders := []string{}
+				capture := false
+				var start int
+				var end int
+				for i, char := range v {
+					switch char {
+					case '{':
+						if capture {
+							return nil, fmt.Errorf("an embeded label cannot be nested")
+						}
+						capture = true
+						start = i
+					case '}':
+						if !capture {
+							return nil, fmt.Errorf("an embeded label is malformed")
+						}
+						capture = false
+						end = i
+
+						placeholder := v[start : end+1]
+						placeholders = append(placeholders, placeholder)
+					}
+				}
+
+				embeddedValues := []string{}
+				for _, p := range placeholders {
+					labelName := strings.TrimSpace(p[1 : len(p)-1])
+					vs, ok := c.Labels()[labelName]
+					if !ok {
+						return nil, fmt.Errorf("undefined label `%s` cannot use in `name` directive", labelName)
+					}
+					if len(vs) != 1 {
+						return nil, fmt.Errorf("a label used as the embeded label must have just one value; `%s` has %v values", labelName, len(vs))
+					}
+					embeddedValues = append(embeddedValues, vs[0])
+				}
+
+				label := v
+				for i, p := range placeholders {
+					label = strings.Replace(label, p, embeddedValues[i], 1)
+				}
+				attrs[k] = label
+			} else {
+				attrs[k] = v
+			}
 		}
 	}
 
