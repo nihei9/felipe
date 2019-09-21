@@ -1,7 +1,6 @@
 package definitions
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -10,17 +9,6 @@ import (
 
 const (
 	DefinitionKindComponents = "components"
-)
-
-var (
-	errorVersionIsMissing            = errors.New("`version` must be specified")
-	errorKindIsMissing               = errors.New("`kind` must be specified")
-	errorKindIsNotComponents         = errors.New("`kind` must be `components`")
-	errorComponentsHasNoComponent    = errors.New("`components` must contain at least one content")
-	errorComponentsHasEmptyComponent = errors.New("`components[]` includes empty components")
-	errorComponentNameIsMissing      = errors.New("`components[].name` must be specified")
-	errorComponentHasEmptyDependency = errors.New("`dependencies[]` includes empty components")
-	errorDependencyNameIsMissing     = errors.New("`dependencies[].name` must be specified")
 )
 
 func ReadComponentsDefinition(r io.Reader) (*ComponentsDefinition, error) {

@@ -3,7 +3,6 @@ package dot
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/nihei9/felipe/graph"
 	"github.com/nihei9/felipe/pkg/felipe/definitions"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -64,14 +62,6 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = def.Validate()
-		if err != nil {
-			return err
-		}
-
-		if def.Kind != definitions.DefinitionKindFaces {
-			return fmt.Errorf("kind of specified face file is not `faces`; got: %v", def.Kind)
-		}
 
 		for _, fDef := range def.Faces {
 			f := graph.NewFace()
@@ -107,23 +97,13 @@ func readComponentsDefinition(filePath string) (*definitions.ComponentsDefinitio
 }
 
 func readFacesDefinition(filePath string) (*definitions.FacesDefinition, error) {
-	def := &definitions.FacesDefinition{}
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	src, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	err = yaml.Unmarshal(src, def)
-	if err != nil {
-		return nil, err
-	}
-
-	return def, nil
+	return definitions.ReadFacesDefinition(f)
 }
 
 func writeDot(group *graph.Components, cs *graph.Components, fs []*graph.Face, w io.Writer) error {
