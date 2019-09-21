@@ -2,7 +2,6 @@ package query
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,16 +37,9 @@ func run(cmd *cobra.Command, args []string) error {
 
 	cs := graph.NewComponents()
 	for _, defFile := range defFiles {
-		def, err := readDefinition(defFile)
+		def, err := readComponentsDefinition(defFile)
 		if err != nil {
 			return err
-		}
-		err = def.Validate()
-		if err != nil {
-			continue
-		}
-		if def.Kind != definitions.DefinitionKindComponents {
-			continue
 		}
 
 		for _, cDef := range def.Components {
@@ -103,24 +95,14 @@ func listDefinitionFiles(srcDir string) ([]string, error) {
 	return filepath.Glob(filepath.Join(srcDir, "*.yaml"))
 }
 
-func readDefinition(filePath string) (*definitions.ComponentsDefinition, error) {
+func readComponentsDefinition(filePath string) (*definitions.ComponentsDefinition, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	src, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	def := &definitions.ComponentsDefinition{}
-	err = yaml.Unmarshal(src, def)
-	if err != nil {
-		return nil, err
-	}
-
-	return def, nil
+	return definitions.ReadComponentsDefinition(f)
 }
 
 func writeResult(cs *graph.Components) error {

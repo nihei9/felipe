@@ -34,17 +34,8 @@ func NewCmd() *cobra.Command {
 
 func run(cmd *cobra.Command, args []string) error {
 	def, err := readComponentsDefinition(flagSrcFile)
-	{
-		if err != nil {
-			return err
-		}
-		err = def.Validate()
-		if err != nil {
-			return err
-		}
-		if def.Kind != definitions.DefinitionKindComponents {
-			return fmt.Errorf("the specified definition is not `components`")
-		}
+	if err != nil {
+		return err
 	}
 
 	cs := graph.NewComponents()
@@ -100,30 +91,19 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func readComponentsDefinition(filePath string) (*definitions.ComponentsDefinition, error) {
-	def := &definitions.ComponentsDefinition{}
+	var r io.Reader
 	if filePath != "" {
 		f, err := os.Open(filePath)
 		if err != nil {
 			return nil, err
 		}
 		defer f.Close()
-
-		src, err := ioutil.ReadAll(f)
-		if err != nil {
-			return nil, err
-		}
-		err = yaml.Unmarshal(src, def)
-		if err != nil {
-			return nil, err
-		}
+		r = f
 	} else {
-		err := yaml.NewDecoder(os.Stdin).Decode(def)
-		if err != nil {
-			return nil, err
-		}
+		r = os.Stdin
 	}
 
-	return def, nil
+	return definitions.ReadComponentsDefinition(r)
 }
 
 func readFacesDefinition(filePath string) (*definitions.FacesDefinition, error) {

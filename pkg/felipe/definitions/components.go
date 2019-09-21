@@ -1,12 +1,42 @@
 package definitions
 
 import (
+	"errors"
 	"fmt"
+	"io"
+
+	"gopkg.in/yaml.v2"
 )
 
 const (
 	DefinitionKindComponents = "components"
 )
+
+var (
+	errorVersionIsMissing            = errors.New("`version` must be specified")
+	errorKindIsMissing               = errors.New("`kind` must be specified")
+	errorKindIsNotComponents         = errors.New("`kind` must be `components`")
+	errorComponentsHasNoComponent    = errors.New("`components` must contain at least one content")
+	errorComponentsHasEmptyComponent = errors.New("`components[]` includes empty components")
+	errorComponentNameIsMissing      = errors.New("`components[].name` must be specified")
+	errorComponentHasEmptyDependency = errors.New("`dependencies[]` includes empty components")
+	errorDependencyNameIsMissing     = errors.New("`dependencies[].name` must be specified")
+)
+
+func ReadComponentsDefinition(r io.Reader) (*ComponentsDefinition, error) {
+	def := &ComponentsDefinition{}
+	err := yaml.NewDecoder(r).Decode(def)
+	if err != nil {
+		return nil, err
+	}
+
+	err = def.validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return def, nil
+}
 
 type ComponentsDefinition struct {
 	Version    string       `yaml:"version"`
@@ -14,20 +44,24 @@ type ComponentsDefinition struct {
 	Components []*Component `yaml:"components"`
 }
 
-func (def *ComponentsDefinition) Validate() error {
+func (def *ComponentsDefinition) validate() error {
 	if def.Version == "" {
-		return fmt.Errorf("`version` must be specified")
+		return errorVersionIsMissing
 	}
 	if def.Kind == "" {
-		return fmt.Errorf("`kind` must be specified")
+		return errorKindIsMissing
 	}
 	if def.Kind != DefinitionKindComponents {
-		return fmt.Errorf("`kind` must be `components`")
+		return errorKindIsNotComponents
 	}
 	if len(def.Components) <= 0 {
-		return fmt.Errorf("`components` must contain at least one content")
+		return errorComponentsHasNoComponent
 	}
 	for _, c := range def.Components {
+		if c == nil {
+			return errorComponentsHasEmptyComponent
+		}
+
 		err := c.validate()
 		if err != nil {
 			return err
@@ -99,9 +133,13 @@ func (c *Component) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 func (c *Component) validate() error {
 	if c.Name == "" {
-		return fmt.Errorf("`componets[].name` must be specified")
+		return errorComponentNameIsMissing
 	}
 	for _, dc := range c.Dependencies {
+		if dc == nil {
+			return errorComponentHasEmptyDependency
+		}
+
 		err := dc.validate()
 		if err != nil {
 			return err
@@ -117,7 +155,7 @@ type DependentComponent struct {
 
 func (dc *DependentComponent) validate() error {
 	if dc.Name == "" {
-		return fmt.Errorf("`dependencies[].name` must be specified")
+		return errorDependencyNameIsMissing
 	}
 
 	return nil
