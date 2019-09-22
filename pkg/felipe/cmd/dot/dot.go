@@ -3,7 +3,6 @@ package dot
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/nihei9/felipe/graph"
 	"github.com/nihei9/felipe/pkg/felipe/definitions"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -34,17 +32,8 @@ func NewCmd() *cobra.Command {
 
 func run(cmd *cobra.Command, args []string) error {
 	def, err := readComponentsDefinition(flagSrcFile)
-	{
-		if err != nil {
-			return err
-		}
-		err = def.Validate()
-		if err != nil {
-			return err
-		}
-		if def.Kind != definitions.DefinitionKindComponents {
-			return fmt.Errorf("the specified definition is not `components`")
-		}
+	if err != nil {
+		return err
 	}
 
 	cs := graph.NewComponents()
@@ -73,14 +62,6 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = def.Validate()
-		if err != nil {
-			return err
-		}
-
-		if def.Kind != definitions.DefinitionKindFaces {
-			return fmt.Errorf("kind of specified face file is not `faces`; got: %v", def.Kind)
-		}
 
 		for _, fDef := range def.Faces {
 			f := graph.NewFace()
@@ -100,50 +81,29 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func readComponentsDefinition(filePath string) (*definitions.ComponentsDefinition, error) {
-	def := &definitions.ComponentsDefinition{}
+	var r io.Reader
 	if filePath != "" {
 		f, err := os.Open(filePath)
 		if err != nil {
 			return nil, err
 		}
 		defer f.Close()
-
-		src, err := ioutil.ReadAll(f)
-		if err != nil {
-			return nil, err
-		}
-		err = yaml.Unmarshal(src, def)
-		if err != nil {
-			return nil, err
-		}
+		r = f
 	} else {
-		err := yaml.NewDecoder(os.Stdin).Decode(def)
-		if err != nil {
-			return nil, err
-		}
+		r = os.Stdin
 	}
 
-	return def, nil
+	return definitions.ReadComponentsDefinition(r)
 }
 
 func readFacesDefinition(filePath string) (*definitions.FacesDefinition, error) {
-	def := &definitions.FacesDefinition{}
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	src, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	err = yaml.Unmarshal(src, def)
-	if err != nil {
-		return nil, err
-	}
-
-	return def, nil
+	return definitions.ReadFacesDefinition(f)
 }
 
 func writeDot(group *graph.Components, cs *graph.Components, fs []*graph.Face, w io.Writer) error {
