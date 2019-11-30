@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/awalterschulze/gographviz"
+	"github.com/nihei9/felipe/definitions"
 	"github.com/nihei9/felipe/graph"
-	"github.com/nihei9/felipe/pkg/felipe/definitions"
 	"github.com/spf13/cobra"
 )
 
