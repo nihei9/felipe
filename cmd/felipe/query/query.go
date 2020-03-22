@@ -4,16 +4,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"github.com/nihei9/felipe/component"
 	"github.com/nihei9/felipe/definitions"
-	"github.com/nihei9/felipe/graph"
+	"github.com/nihei9/felipe/query"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
 
 var (
-	flagLabel string
+	flagFilter          string
+	flagComplementation string
 )
 
 func NewCmd() *cobra.Command {
@@ -24,7 +27,8 @@ func NewCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  run,
 	}
-	cmd.Flags().StringVarP(&flagLabel, "label", "l", "", "query label")
+	cmd.Flags().StringVarP(&flagFilter, "filter", "f", "", "filter used in the query")
+	cmd.Flags().StringVarP(&flagComplementation, "complementation", "c", "", "complementation used in the query")
 
 	return cmd
 }
@@ -35,7 +39,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cs := graph.NewComponents()
+	cs := component.NewComponents()
 	for _, defFile := range defFiles {
 		def, err := readComponentsDefinition(defFile)
 		if err != nil {
@@ -43,15 +47,7 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 
 		for _, cDef := range def.Components {
-			c := graph.NewComponent(cDef.Name, cDef.Base, !cDef.Hide)
-			for k, vs := range cDef.Labels {
-				for _, v := range vs {
-					c.Label(k, v)
-				}
-			}
-			for _, dDef := range cDef.Dependencies {
-				c.DependOn(graph.NewComponentID(dDef.Name))
-			}
+			c := definitions.MakeComponentEntity(cDef)
 			cs.Add(c)
 		}
 	}
@@ -60,29 +56,60 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var result *graph.Components
-	if flagLabel != "" {
-		l := strings.Split(flagLabel, "=")
-		if len(l) != 2 {
-			return fmt.Errorf("query label is malformed; got: %v", flagLabel)
+	var filter query.Filter
+	if flagFilter != "" {
+		f := strings.Split(flagFilter, "=")
+		if len(f) != 2 {
+			return fmt.Errorf("filter is malformed; got: %v", flagFilter)
 		}
-		condK := strings.TrimSpace(l[0])
-		condV := strings.TrimSpace(l[1])
+		k := strings.TrimSpace(f[0])
+		v := strings.TrimSpace(f[1])
 
-		cond := graph.NewCondition()
-		cond.AddMatcher(graph.NewLabelsMatcher(map[string]string{condK: condV}))
-		result, err = graph.Query(cs, cond, nil)
-		if err != nil {
-			return err
+		filter = query.LabelsFilter{
+			Labels: map[string]string{k: v},
 		}
 	} else {
-		cond := graph.NewCondition()
-		cond.AddMatcher(graph.NewAnyMatcher())
-		result, err = graph.Query(cs, cond, nil)
-		if err != nil {
-			return err
+		filter = query.AllPassFilter{}
+	}
+
+	var complementer query.Complementer
+	if flagComplementation != "" {
+		f := strings.Split(flagComplementation, "=")
+		if len(f) != 2 {
+			return fmt.Errorf("complementation is malformed; got: %v", flagComplementation)
+		}
+		k := strings.TrimSpace(f[0])
+		v := strings.TrimSpace(f[1])
+
+		switch k {
+		case "dep":
+			depth, err := strconv.Atoi(v)
+			if err != nil {
+				return err
+			}
+			complementer = query.DependenciesComplementer{
+				AllComponents: cs,
+				Depth:         depth,
+			}
+		default:
+			return fmt.Errorf("invalid complementation; got: %v", k)
+		}
+	} else {
+		complementer = query.DependenciesComplementer{
+			AllComponents: cs,
+			Depth:         -1,
 		}
 	}
+
+	result, err := query.Query{
+		Components:   cs,
+		Filter:       filter,
+		Complementer: complementer,
+	}.Do()
+	if err != nil {
+		return err
+	}
+
 	err = writeResult(result)
 	if err != nil {
 		return err
@@ -105,20 +132,21 @@ func readComponentsDefinition(filePath string) (*definitions.ComponentsDefinitio
 	return definitions.ReadComponentsDefinition(f)
 }
 
-func writeResult(cs *graph.Components) error {
+func writeResult(cs *component.Components) error {
 	components := []*definitions.Component{}
-	for _, c := range cs.Components() {
+	for _, id := range cs.GetIDs() {
+		c, _ := cs.Get(id)
 		deps := []*definitions.DependentComponent{}
-		for _, d := range c.Dependencies() {
+		for d, _ := range c.Dependencies {
 			deps = append(deps, &definitions.DependentComponent{
-				Name: d.String(),
+				ID: d.String(),
 			})
 		}
 
 		components = append(components, &definitions.Component{
-			Name:         c.ID().String(),
+			ID:           c.ID.String(),
 			Hide:         false,
-			Labels:       c.Labels(),
+			Labels:       c.Labels,
 			Dependencies: deps,
 		})
 	}
