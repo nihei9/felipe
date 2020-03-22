@@ -17,7 +17,7 @@ func TestComponentsDefinition(t *testing.T) {
 version: 1
 kind: components
 components:
-- name: c1
+- id: c1
 `,
 		},
 		{
@@ -26,7 +26,7 @@ components:
 version: 1
 kind: components
 components:
-- name: c1
+- id: c1
   hide:
   base:
   dependencies:
@@ -38,8 +38,8 @@ components:
 version: 1
 kind: components
 components:
-- name: c1
-- name: c2
+- id: c1
+- id: c2
 `,
 		},
 		{
@@ -48,17 +48,17 @@ components:
 version: 1
 kind: components
 components:
-- name: c1
+- id: c1
   hide: true
   base:
   dependencies:
-  - name: d1
-- name: c2
+  - id: d1
+- id: c2
   hide: false
   base: c1
   dependencies:
-  - name: d1
-  - name: d2
+  - id: d1
+  - id: d2
 `,
 		},
 		{
@@ -66,7 +66,7 @@ components:
 			data: `
 kind: components
 components:
-- name: c1
+- id: c1
 `,
 			err: errorVersionIsMissing,
 		},
@@ -76,7 +76,7 @@ components:
 version:
 kind: components
 components:
-- name: c1
+- id: c1
 `,
 			err: errorVersionIsMissing,
 		},
@@ -85,7 +85,7 @@ components:
 			data: `
 version: 1
 components:
-- name: c1
+- id: c1
 `,
 			err: errorKindIsMissing,
 		},
@@ -95,7 +95,7 @@ components:
 version: 1
 kind:
 components:
-- name: c1
+- id: c1
 `,
 			err: errorKindIsMissing,
 		},
@@ -105,7 +105,7 @@ components:
 version: 1
 kind: foo
 components:
-- name: c1
+- id: c1
 `,
 			err: errorKindIsNotComponents,
 		},
@@ -142,21 +142,21 @@ components:
 version: 1
 kind: components
 components:
-- name: c1
+- id: c1
 -
-- name: c2
+- id: c2
 `,
 			err: errorComponentsHasEmptyComponent,
 		},
 		{
-			caption: "`components[].name` is not specified",
+			caption: "`components[].id` is not specified",
 			data: `
 version: 1
 kind: components
 components:
-- name:
+- id:
 `,
-			err: errorComponentNameIsMissing,
+			err: errorComponentIDIsMissing,
 		},
 		{
 			caption: "`components[].dependencies[]` includes an empty dependency",
@@ -164,7 +164,7 @@ components:
 version: 1
 kind: components
 components:
-- name: c1
+- id: c1
   dependencies:
   -
 `,
@@ -176,25 +176,25 @@ components:
 version: 1
 kind: components
 components:
-- name: c1
+- id: c1
   dependencies:
-  - name: d1
+  - id: d1
   -
-  - name: d2
+  - id: d2
 `,
 			err: errorComponentHasEmptyDependency,
 		},
 		{
-			caption: "`components[].dependencies[].name` is not specified",
+			caption: "`components[].dependencies[].id` is not specified",
 			data: `
 version: 1
 kind: components
 components:
-- name: c1
+- id: c1
   dependencies:
-  - name:
+  - id:
 `,
-			err: errorDependencyNameIsMissing,
+			err: errorDependencyIDIsMissing,
 		},
 	}
 	for _, tt := range tests {

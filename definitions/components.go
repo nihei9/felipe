@@ -60,16 +60,16 @@ func (def *ComponentsDefinition) validate() error {
 }
 
 type Component struct {
-	Name         string                `yaml:"name"`
+	ID           string                `yaml:"id"`
 	Base         string                `yaml:"base,omitempty"`
 	Hide         bool                  `yaml:"hide,omitempty"`
-	Labels       map[string][]string   `yaml:"labels,omitempty"`
+	Labels       map[string]string     `yaml:"labels,omitempty"`
 	Dependencies []*DependentComponent `yaml:"dependencies,omitempty"`
 }
 
 func (c *Component) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	comp := &struct {
-		Name         string                `yaml:"name"`
+		ID           string                `yaml:"id"`
 		Base         string                `yaml:"base"`
 		Hide         bool                  `yaml:"hide"`
 		Labels       interface{}           `yaml:"labels"`
@@ -80,37 +80,26 @@ func (c *Component) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	labels := map[string][]string{}
+	labels := map[string]string{}
 	if comp.Labels != nil {
 		rawLabels, ok := comp.Labels.(map[interface{}]interface{})
 		if !ok {
 			return fmt.Errorf("`labels` must be map[string]string or map[string][]string")
 		}
-		for rawKey, rawValues := range rawLabels {
+		for rawKey, rawValue := range rawLabels {
 			key, ok := rawKey.(string)
 			if !ok {
 				return fmt.Errorf("a key of `labels` must be string")
 			}
-			switch values := rawValues.(type) {
-			case string:
-				labels[key] = []string{values}
-			case []interface{}:
-				s := []string{}
-				for _, value := range values {
-					v, ok := value.(string)
-					if !ok {
-						return fmt.Errorf("a value of `labels` must be string or []string")
-					}
-					s = append(s, v)
-				}
-				labels[key] = s
-			default:
+			value, ok := rawValue.(string)
+			if !ok {
 				return fmt.Errorf("a value of `labels` must be string or []string")
 			}
+			labels[key] = value
 		}
 	}
 
-	c.Name = comp.Name
+	c.ID = comp.ID
 	c.Base = comp.Base
 	c.Hide = comp.Hide
 	c.Labels = labels
@@ -120,8 +109,8 @@ func (c *Component) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (c *Component) validate() error {
-	if c.Name == "" {
-		return errorComponentNameIsMissing
+	if c.ID == "" {
+		return errorComponentIDIsMissing
 	}
 	for _, dc := range c.Dependencies {
 		if dc == nil {
@@ -138,12 +127,12 @@ func (c *Component) validate() error {
 }
 
 type DependentComponent struct {
-	Name string `yaml:"name"`
+	ID string `yaml:"id"`
 }
 
 func (dc *DependentComponent) validate() error {
-	if dc.Name == "" {
-		return errorDependencyNameIsMissing
+	if dc.ID == "" {
+		return errorDependencyIDIsMissing
 	}
 
 	return nil
