@@ -130,3 +130,47 @@ func (c DependenciesComplementer) complement(depth int, pivot *component.Compone
 
 	return nil
 }
+
+type ReverseDependenciesComplementer struct {
+	AllComponents *component.Components
+	Depth         int
+}
+
+func (c ReverseDependenciesComplementer) Complement(target *component.Components) (*component.Components, error) {
+	result := component.NewComponents()
+	for _, id := range target.GetIDs() {
+		startingPoint, _ := target.Get(id)
+		err := c.complement(0, startingPoint, result)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+func (c ReverseDependenciesComplementer) complement(depth int, pivot *component.Component, acc *component.Components) error {
+	if c.Depth >= 0 && depth > c.Depth {
+		return nil
+	}
+	if _, ok := acc.Get(pivot.ID); ok {
+		return nil
+	}
+
+	acc.Add(pivot)
+
+	for _, rDepID := range c.AllComponents.GetIDs() {
+		rDep, _ := c.AllComponents.Get(rDepID)
+		for depID, _ := range rDep.Dependencies {
+			if depID != pivot.ID {
+				continue
+			}
+			err := c.complement(depth+1, rDep, acc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

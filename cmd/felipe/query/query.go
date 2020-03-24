@@ -91,6 +91,15 @@ func run(cmd *cobra.Command, args []string) error {
 				AllComponents: cs,
 				Depth:         depth,
 			}
+		case "rdep":
+			depth, err := strconv.Atoi(v)
+			if err != nil {
+				return err
+			}
+			complementer = query.ReverseDependenciesComplementer{
+				AllComponents: cs,
+				Depth:         depth,
+			}
 		default:
 			return fmt.Errorf("invalid complementation; got: %v", k)
 		}
