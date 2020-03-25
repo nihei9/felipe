@@ -127,7 +127,8 @@ func (c *Component) validate() error {
 }
 
 type DependentComponent struct {
-	ID string `yaml:"id"`
+	ID       string `yaml:"id"`
+	Relation string `yaml:"relation"`
 }
 
 func (dc *DependentComponent) validate() error {

@@ -142,30 +142,7 @@ func readComponentsDefinition(filePath string) (*definitions.ComponentsDefinitio
 }
 
 func writeResult(cs *component.Components) error {
-	components := []*definitions.Component{}
-	for _, id := range cs.GetIDs() {
-		c, _ := cs.Get(id)
-		deps := []*definitions.DependentComponent{}
-		for d, _ := range c.Dependencies {
-			deps = append(deps, &definitions.DependentComponent{
-				ID: d.String(),
-			})
-		}
-
-		components = append(components, &definitions.Component{
-			ID:           c.ID.String(),
-			Hide:         false,
-			Labels:       c.Labels,
-			Dependencies: deps,
-		})
-	}
-
-	def := &definitions.ComponentsDefinition{
-		Version:    "1",
-		Kind:       definitions.DefinitionKindComponents,
-		Components: components,
-	}
-
+	def := definitions.MakeComponentsDefinition(cs)
 	data, err := yaml.Marshal(def)
 	if err != nil {
 		return err

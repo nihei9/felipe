@@ -139,7 +139,7 @@ func genDot(group *component.Components, cs *component.Components, fs []*Face) (
 		if err != nil {
 			return "", err
 		}
-		for dcid, _ := range c.Dependencies {
+		for dcid, rel := range c.Dependencies {
 			d, ok := cs.Get(dcid)
 			if !ok {
 				continue
@@ -157,6 +157,7 @@ func genDot(group *component.Components, cs *component.Components, fs []*Face) (
 			eAttrs := map[string]string{
 				"arrowsize": "0.75",
 				"penwidth":  "0.75",
+				"label":     fmt.Sprintf("\"%s\"", rel.Description),
 			}
 			err = g.AddEdge(fmt.Sprintf("\"%s\"", c.ID.String()), fmt.Sprintf("\"%s\"", d.ID.String()), true, eAttrs)
 			if err != nil {
