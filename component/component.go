@@ -85,6 +85,10 @@ func (cs *Components) Complement() error {
 	return nil
 }
 
+type Relation struct {
+	Description string
+}
+
 type complementStatus string
 
 const (
@@ -96,7 +100,7 @@ const (
 type Component struct {
 	ID           ComponentID
 	Labels       map[string]string
-	Dependencies map[ComponentID]struct{}
+	Dependencies map[ComponentID]*Relation
 
 	baseID           ComponentID
 	hidden           bool
@@ -107,7 +111,7 @@ func NewComponent(baseID ComponentID, id ComponentID) *Component {
 	return &Component{
 		ID:               id,
 		Labels:           map[string]string{},
-		Dependencies:     map[ComponentID]struct{}{},
+		Dependencies:     map[ComponentID]*Relation{},
 		baseID:           baseID,
 		hidden:           false,
 		complementStatus: complementStatusNew,
@@ -118,8 +122,8 @@ func (c *Component) AddLabel(key string, value string) {
 	c.Labels[key] = value
 }
 
-func (c *Component) DependOn(dependencyID ComponentID) {
-	c.Dependencies[dependencyID] = struct{}{}
+func (c *Component) DependOn(dependencyID ComponentID, relation *Relation) {
+	c.Dependencies[dependencyID] = relation
 }
 
 func (c *Component) IsHidden() bool {
@@ -175,8 +179,11 @@ func (c *Component) inherit(base *Component) error {
 	}
 
 	// inherit dependencies from a base component
-	for d, _ := range base.Dependencies {
-		c.DependOn(d)
+	for dep, rel := range base.Dependencies {
+		if _, alreadyExists := c.Dependencies[dep]; alreadyExists {
+			continue
+		}
+		c.DependOn(dep, rel)
 	}
 
 	return nil
